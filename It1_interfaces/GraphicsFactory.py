@@ -11,7 +11,7 @@ class GraphicsFactory:
          sprites_dir: Path,
          cfg: dict,
          cell_size: tuple[int, int]) -> Graphics:
-
+        print(f"[DEBUG] Loading sprites from: {sprites_dir}")
         fps = cfg.get("frames_per_sec", 6.0)
         loop = cfg.get("is_loop", True)
 

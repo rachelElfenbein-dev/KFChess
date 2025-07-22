@@ -36,14 +36,16 @@ class Moves:
                 if '#' in line:
                     line = line[:line.index('#')].strip()
                 parts = line.split(',')
-                if len(parts) != 2:
-                    # שורה לא תקינה, מתעלמים
+                if len(parts) < 2:
                     continue
                 try:
                     dr = int(parts[0].strip())
-                    dc = int(parts[1].strip())
+                    # תמיכה בשורות כמו 1,0:non_capture
+                    dc_part = parts[1].strip()
+                    if ':' in dc_part:
+                        dc_part = dc_part.split(':')[0]
+                    dc = int(dc_part)
                 except ValueError:
-                    # ערכים לא תקינים - מתעלמים
                     continue
                 # מסננים תנועות שמוציאות את הכלי מחוץ ללוח
                 if not self._is_in_bounds(dr, dc):

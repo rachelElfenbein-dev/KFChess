@@ -53,6 +53,8 @@ from It1_interfaces.GraphicsFactory import GraphicsFactory
 from It1_interfaces.Piece import Piece
 from It1_interfaces.State import State  
 from It1_interfaces.Moves import Moves
+from It1_interfaces.StateMachine import StateMachine
+from It1_interfaces.Physics import IdlePhysics, MovePhysics
 
 
 class PieceFactory:
@@ -62,40 +64,38 @@ class PieceFactory:
         self.physics_factory = PhysicsFactory(board)
         self.graphics_factory = GraphicsFactory(board)
 
+# ...existing code...
+
     def create_piece(self, piece_id: str, cell: tuple[int, int]) -> Piece:
-        # נתיב לתיקיית מצב idle (כברירת מחדל)
         idle_dir = self.pieces_root / piece_id / "states" / "idle"
         config_path = idle_dir / "config.json"
-        sprites_dir = idle_dir / "sprites"
-        
-        print("🔍 יצירת כלי:", piece_id, "במיקום:", cell)
-        print("🔍 config_path:", config_path)
-        print("🔍 sprites_dir:", sprites_dir)
+        sprites_dir = self.pieces_root / piece_id  # במקום idle_dir / "sprites"
 
-      
-        # קריאת קובץ config.json
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
 
-        # --- טיפול בברירות מחדל ל־physics ---
-        physics_cfg = config.get("physics", {})
-        physics_cfg.setdefault("type", "idle")  # ברירת מחדל אם חסר
-        physics = self.physics_factory.create(cell, physics_cfg)
-
-        # --- טיפול בברירות מחדל ל־graphics ---
         graphics_cfg = config.get("graphics", {})
-        graphics_cfg.setdefault("dir", "idle")
-        graphics_cfg["fps"] = graphics_cfg.get("frames_per_sec", graphics_cfg.get("fps", 6))
-
         cell_size = (self.board.cell_W_pix, self.board.cell_H_pix)
         graphics = self.graphics_factory.load(sprites_dir, graphics_cfg, cell_size)
-
-        # --- טעינת מהלכים ---
         moves_txt_path = self.pieces_root / piece_id / "moves.txt"
         moves = Moves(moves_txt_path, (self.board.H_cells, self.board.W_cells))
 
-        # יצירת מצב ראשוני
-        state = State(physics=physics, graphics=graphics, moves=moves)
-        print(f"🔍 sprites_dir: {sprites_dir}")
-        # יצירת הכלי
-        return Piece(piece_id=piece_id, init_state=state)
+        # צור את כל המצבים
+        idle_state = State(moves, graphics, IdlePhysics(cell, self.board))
+        move_state = State(moves, graphics, MovePhysics(cell, self.board))
+        longrest_state = State(moves, graphics, IdlePhysics(cell, self.board))
+        jump_state = State(moves, graphics, MovePhysics(cell, self.board))
+        shortrest_state = State(moves, graphics, IdlePhysics(cell, self.board))
+
+        states = {
+            "Idle": idle_state,
+            "Move": move_state,
+            "LongRest": longrest_state,
+            "Jump": jump_state,
+            "ShortRest": shortrest_state,
+        }
+        state_machine = StateMachine(states, initial="Idle")
+
+        piece = Piece(piece_id=piece_id, state_machine=state_machine)
+        print(f"🔍 Physics class for {piece_id} is {type(move_state._physics).__name__}")
+        return piece

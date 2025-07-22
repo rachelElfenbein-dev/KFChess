@@ -57,8 +57,11 @@ class Img:
         print(f"Drawing+++++++  {self} at ({x}, {y})")
         print(f"other img {other_img} at ({x}, {y})")
 
-        if self.img is None or other_img.img is None:
-            raise ValueError("Both images must be loaded before drawing.")
+        if self.img is None : 
+            raise ValueError("self images must be loaded before drawing.")
+        
+        if other_img.img is None:
+            raise ValueError("Other image must be loaded before drawing.")
 
         if self.img.shape[2] != other_img.img.shape[2]:
             if self.img.shape[2] == 3 and other_img.img.shape[2] == 4:

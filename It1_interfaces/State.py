@@ -32,7 +32,9 @@ class State:
         מאתחל את הגרפיקה, הפיזיקה ושומר את הפקודה הנוכחית.
         :param cmd: הפקודה שעל פיה מאתחלים
         """
-        self._graphics.reset()
+        print("State.reset called for", self._physics, "with cmd", cmd)
+
+        self._graphics.reset(cmd)
         self._physics.reset(cmd)
         self._current_command = cmd
 
@@ -49,14 +51,19 @@ class State:
     #         return self.process_command(cmd, now_ms)
     #     return self
 
-    def update(self, now_ms: int) -> 'State':
-        self._graphics.reset(now_ms)
+    # def update(self, now_ms: int) -> 'State':
+    #     # self._graphics.reset(now_ms)
+    #     cmd = self._physics.update(now_ms)
+    #     if cmd is not None:
+    #         next_state = self.process_command(cmd, now_ms)
+    #         if next_state is not None:
+    #             return next_state
+    #     return self
+    def update(self, now_ms: int) -> Optional[Command]:
         cmd = self._physics.update(now_ms)
         if cmd is not None:
-            next_state = self.process_command(cmd, now_ms)
-            if next_state is not None:
-                return next_state
-        return self
+            return cmd
+        return None
 
     def process_command(self, cmd: Command, now_ms: int) -> Optional['State']:
         """

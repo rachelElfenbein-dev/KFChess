@@ -1,3 +1,4 @@
+import cmd
 import pathlib
 import copy
 import os
@@ -30,15 +31,15 @@ class Graphics:
         self._load_idle(sprites_folder)
 
     def _load_idle(self, subdir: str):
-   
-        path = self.sprites_folder
+
+        path = self.sprites_folder / "states" / "idle" / "sprites"
         if not path.exists():
             print(f"⚠️ תיקיית idle לא קיימת: {path}")
             return
 
         pngs = sorted(
             [p for p in path.iterdir()
-            if p.suffix.lower() == ".png" and p.stem.isdigit()],
+             if p.suffix.lower() == ".png" and p.stem.isdigit() and int(p.stem) >= 1],
                 key=lambda p: int(p.stem)
         )
         self.frame_paths = pngs
@@ -62,28 +63,31 @@ class Graphics:
         self.last_update_ms = 0
         self.img = None
 
-        subdir = f"{cmd.piece}_{cmd.dir}"
-        path = self.sprites_folder / subdir
+        # subdir = f"{cmd.piece_id}/states/{cmd.type.lower()}"
+        # path = self.sprites_folder / subdir
+        state_name = cmd.type.lower()
+        path = self.sprites_folder / "states" / state_name / "sprites"
         if not path.exists():
-            print(f"⚠️ לא נמצאה תיקייה עבור: {subdir}")
+            print(f"⚠️ לא נמצאה תיקייה עבור: {path}")
             return
 
         pngs = sorted(
             [p for p in path.iterdir()
-             if p.suffix.lower() == ".png" and p.stem.isdigit()],
+            if p.suffix.lower() == ".png" and p.stem.isdigit() and int(p.stem) >= 1],
             key=lambda p: int(p.stem)
         )
         self.frame_paths = pngs
 
-        for _ in pngs:
+        for png_path in pngs:
             frame = self.Img()
+            frame.read(str(png_path), size=(self.board.cell_W_pix, self.board.cell_H_pix))
             self.frames.append(frame)
 
         if self.frames:
             self.cur_frame_idx = 0
             self.img = self.frames[0]
-            x, y = self.board.get_pixel_position(cmd.end_cell)
-            self.img.reset((x, y))
+            # x, y = self.board.get_pixel_position(cmd.target_cell)
+            # self.img.reset((x, y))
 
     def update(self, now_ms: int):
         if not self.frames:
@@ -96,11 +100,13 @@ class Graphics:
         if self.cur_frame_idx < len(self.frames) - 1:
             self.cur_frame_idx += 1
             self.img = self.frames[self.cur_frame_idx]
-            x, y = self.board.get_pixel_position(self.current_cmd.end_cell)
+            x, y = self.board.get_pixel_position(self.current_cmd.target_cell)
             self.img.reset((x, y))
         self.last_update_ms = now_ms
 
     def get_img(self) -> Optional[Img]:
+        print("get_img called, returning:", self.img)
+
         return self.img
 
     def copy(self):

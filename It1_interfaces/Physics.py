@@ -50,12 +50,15 @@ class Physics:
     #         self.is_moving = False
     def reset(self, cmd: Command):
         """Reset physics state with a new command."""
+        print("Physics.reset: got cmd", cmd)
         self.current_command = cmd
     # נסה להוציא יעד מהפקודה
         target_cell = getattr(cmd, 'target_cell', None)
         if target_cell is None and hasattr(cmd, 'params') and len(cmd.params) > 1:
         # params=[src, dst, ...]
             target_cell = cmd.params[1]
+        print(f"[DEBUG] Physics.reset: target_cell={target_cell}")
+
         if target_cell is not None:
             try:
                 if isinstance(target_cell, (tuple, list)) and len(target_cell) == 2:
@@ -63,6 +66,7 @@ class Physics:
                     int(target_cell[1])
                     self.target_pos_meters = self._cell_to_meters(target_cell)
                     self.is_moving = True
+                    print("Physics.reset: is_moving set to True, target_cell:", target_cell)
                     self.start_time_ms = 0  # Will be set in first update call
                 else:
                     self.is_moving = False
@@ -73,6 +77,8 @@ class Physics:
 
     def update(self, now_ms: int) -> Optional[Command]:
         """Update physics state based on current time."""
+        print("Physics.update: is_moving", self.is_moving, "current_cell", self.current_cell, "target", self.target_pos_meters)
+
         if not self.is_moving:
             return None
             
@@ -93,22 +99,28 @@ class Physics:
             
         # Calculate how far we should have traveled by now
         distance_traveled = self.speed_m_s * elapsed_s
-        
         if distance_traveled >= total_distance:
-            # Movement completed
+    # Movement completed
             self.current_pos_meters = self.target_pos_meters
             self.current_cell = (int(self.target_pos_meters[0]), int(self.target_pos_meters[1]))
             self.is_moving = False
             completed_command = self.current_command
             self.current_command = None
-            return completed_command
-        else:
-            # Still moving - interpolate position
-            progress = distance_traveled / total_distance
-            self.current_pos_meters = (
-                self.current_pos_meters[0] + dx * progress,
-                self.current_pos_meters[1] + dy * progress
-            )
+            # החזר פקודת מעבר מתאימה
+            if completed_command and completed_command.type == "Move":
+                return Command(
+                    timestamp=now_ms,
+                    piece_id=completed_command.piece_id,
+                    type="LongRest",
+                    params=[]
+                )
+            elif completed_command and completed_command.type == "Jump":
+                return Command(
+                    timestamp=now_ms,
+                    piece_id=completed_command.piece_id,
+                    type="ShortRest",
+                    params=[]
+                )
             return None
 
     def can_be_captured(self) -> bool:
@@ -164,12 +176,17 @@ class MovePhysics(Physics):
     
     def reset(self, cmd: Command):
         """Enhanced reset with capture detection."""
+        
         super().reset(cmd)
         if hasattr(cmd, 'is_capture') and cmd.is_capture:
             self.last_capture_time_ms = 0  # Will be set on next update
+        print(f"[DEBUG] MovePhysics.reset: current_cell={self.current_cell}, target={getattr(cmd, 'target_cell', None)}, is_moving={self.is_moving}")
+
     
     def update(self, now_ms: int) -> Optional[Command]:
         """Enhanced update with capture timing."""
+        print(f"[DEBUG] MovePhysics.update: current_cell={self.current_cell}, target={self.target_pos_meters}, is_moving={self.is_moving}")
+
         if self.last_capture_time_ms == 0 and hasattr(self.current_command, 'is_capture'):
             if getattr(self.current_command, 'is_capture', False):
                 self.last_capture_time_ms = now_ms
