@@ -52,15 +52,23 @@ class Piece:
         self._state.reset(None)  # אפס ללא פקודה ספציפית (אפשר להתאים אם רוצים)
         self._state.update(start_ms)
 
+    # def update(self, now_ms: int):
+    #     """
+    #     עדכון מצב הכלי בזמן נתון.
+
+    #     מעביר את הזמן למצב הנוכחי ומבצע עדכונים פנימיים.
+
+    #     :param now_ms: זמן נוכחי במילישניות
+    #     """
+    #     self._state.update(now_ms)
+
     def update(self, now_ms: int):
         """
         עדכון מצב הכלי בזמן נתון.
-
-        מעביר את הזמן למצב הנוכחי ומבצע עדכונים פנימיים.
-
-        :param now_ms: זמן נוכחי במילישניות
         """
-        self._state.update(now_ms)
+        new_state = self._state.update(now_ms)
+        if new_state is not self._state:
+            self._state = new_state
 
     def draw_on_board(self, board: Board, now_ms: int):
      

@@ -27,15 +27,38 @@ class Physics:
         pixels_per_meter = 64
         return (int(meters[0] * pixels_per_meter), int(meters[1] * pixels_per_meter))
 
+    # def reset(self, cmd: Command):
+    #     """Reset physics state with a new command."""
+    #     self.current_command = cmd
+    #     if hasattr(cmd, 'target_cell') and cmd.target_cell is not None:
+    #         try:
+    #             # Validate that target_cell is a proper coordinate tuple
+    #             target_cell = cmd.target_cell
+    #             if isinstance(target_cell, (tuple, list)) and len(target_cell) == 2:
+    #                 # Try to convert to ensure they're numeric
+    #                 int(target_cell[0])
+    #                 int(target_cell[1])
+    #                 self.target_pos_meters = self._cell_to_meters(target_cell)
+    #                 self.is_moving = True
+    #                 self.start_time_ms = 0  # Will be set in first update call
+    #             else:
+    #                 self.is_moving = False
+    #         except (TypeError, ValueError, IndexError):
+    #             # Invalid target_cell format, don't move
+    #             self.is_moving = False
+    #     else:
+    #         self.is_moving = False
     def reset(self, cmd: Command):
         """Reset physics state with a new command."""
         self.current_command = cmd
-        if hasattr(cmd, 'target_cell') and cmd.target_cell is not None:
+    # נסה להוציא יעד מהפקודה
+        target_cell = getattr(cmd, 'target_cell', None)
+        if target_cell is None and hasattr(cmd, 'params') and len(cmd.params) > 1:
+        # params=[src, dst, ...]
+            target_cell = cmd.params[1]
+        if target_cell is not None:
             try:
-                # Validate that target_cell is a proper coordinate tuple
-                target_cell = cmd.target_cell
                 if isinstance(target_cell, (tuple, list)) and len(target_cell) == 2:
-                    # Try to convert to ensure they're numeric
                     int(target_cell[0])
                     int(target_cell[1])
                     self.target_pos_meters = self._cell_to_meters(target_cell)
@@ -44,7 +67,6 @@ class Physics:
                 else:
                     self.is_moving = False
             except (TypeError, ValueError, IndexError):
-                # Invalid target_cell format, don't move
                 self.is_moving = False
         else:
             self.is_moving = False

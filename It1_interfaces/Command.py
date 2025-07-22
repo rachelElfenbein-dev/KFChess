@@ -34,9 +34,16 @@ class Command:
     piece_id: str
     type: str
     params: List
+    target_cell: tuple = None  # הוסף שדה זה
+
 
 class Command:
     def __init__(self, cmd_type, player, direction=None):
         self.type = cmd_type  # "Move"
         self.player = player
         self.direction = direction
+
+    def __post_init__(self):
+        # אם params מכיל יעד, שמור אותו
+        if len(self.params) > 1 and isinstance(self.params[1], tuple):
+            self.target_cell = self.params[1]

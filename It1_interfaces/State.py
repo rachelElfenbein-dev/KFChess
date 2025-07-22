@@ -36,17 +36,26 @@ class State:
         self._physics.reset(cmd)
         self._current_command = cmd
 
+    # def update(self, now_ms: int) -> 'State':
+    #     """
+    #     עדכון המצב בזמן נתון.
+    #     מפעיל עדכון גרפיקה ופיזיקה, ומעביר למצב הבא במידה ויש פקודה חדשה.
+    #     :param now_ms: זמן נוכחי במילישניות
+    #     :return: המצב החדש (יכול להיות אותו מצב אם לא מתבצע מעבר)
+    #     """
+    #     self._graphics.reset(now_ms)
+    #     cmd = self._physics.update(now_ms)
+    #     if cmd is not None:
+    #         return self.process_command(cmd, now_ms)
+    #     return self
+
     def update(self, now_ms: int) -> 'State':
-        """
-        עדכון המצב בזמן נתון.
-        מפעיל עדכון גרפיקה ופיזיקה, ומעביר למצב הבא במידה ויש פקודה חדשה.
-        :param now_ms: זמן נוכחי במילישניות
-        :return: המצב החדש (יכול להיות אותו מצב אם לא מתבצע מעבר)
-        """
         self._graphics.reset(now_ms)
         cmd = self._physics.update(now_ms)
         if cmd is not None:
-            return self.process_command(cmd, now_ms)
+            next_state = self.process_command(cmd, now_ms)
+            if next_state is not None:
+                return next_state
         return self
 
     def process_command(self, cmd: Command, now_ms: int) -> Optional['State']:

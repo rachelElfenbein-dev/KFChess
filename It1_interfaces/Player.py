@@ -36,13 +36,13 @@
 import time
 
 class Player:
-    def __init__(self, player_id, controls, start_pos, color):
-        self.player_id = player_id
+    def __init__(self, id, controls, pos, color, selected_piece=None, select_source=None):
+        self.id = id
         self.controls = controls
-        self.position = start_pos
+        self.pos = pos  # [row, col]
         self.color = color
-        self.selected_piece = None
-        self.select_source = None  # מיקום המקור שנבחר
+        self.selected_piece = selected_piece
+        self.select_source = select_source  # מיקום המקור שנבחר
 
     def move_cursor(self, direction, board_size):
         row, col = self.position
