@@ -13,8 +13,8 @@ class Board:
     img: Img         # האובייקט שמייצג את תמונת הלוח
 
     def clone(self) -> "Board":
-      
-        img_copy = self.img.clone()  
+        """יוצר עותק של הלוח עם עותק של התמונה"""
+        img_copy = self.img.copy()  # משתמש ב-copy במקום clone
        
         return Board(
             cell_H_pix=self.cell_H_pix,

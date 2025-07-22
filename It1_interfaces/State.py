@@ -50,7 +50,7 @@ class State:
     #     return self
 
     def update(self, now_ms: int) -> 'State':
-        self._graphics.reset(now_ms)
+        self._graphics.update(now_ms)  # עדכון אנימציה
         cmd = self._physics.update(now_ms)
         if cmd is not None:
             next_state = self.process_command(cmd, now_ms)

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 @dataclass
 class Command:
@@ -29,21 +29,17 @@ class Command:
         - ל־"Jump": ["b1", "c3"]
         - ל־"Attack": ["d5"]
         - ל־"Die": ["f6"]
+        
+    target_cell : Optional[tuple]
+        התא היעד של הפקודה
     """
     timestamp: int
     piece_id: str
     type: str
     params: List
-    target_cell: tuple = None  # הוסף שדה זה
-
-
-class Command:
-    def __init__(self, cmd_type, player, direction=None):
-        self.type = cmd_type  # "Move"
-        self.player = player
-        self.direction = direction
+    target_cell: Optional[tuple] = None
 
     def __post_init__(self):
         # אם params מכיל יעד, שמור אותו
-        if len(self.params) > 1 and isinstance(self.params[1], tuple):
+        if self.params and len(self.params) > 1 and isinstance(self.params[1], tuple):
             self.target_cell = self.params[1]

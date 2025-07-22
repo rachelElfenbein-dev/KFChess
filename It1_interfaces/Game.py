@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple, Optional
 from It1_interfaces.Board import Board
 from It1_interfaces.Command import Command
 from It1_interfaces.Piece import Piece
-from It1_interfaces. img import Img
+from It1_interfaces.img import Img
 
 
 class InvalidBoard(Exception): ...
@@ -17,6 +17,18 @@ class Game:
         self.board = board
         self.user_input_queue = queue.Queue()
         self.running = True
+        
+        # מצב המשחק
+        self.cursor_pos = [0, 0]  # מיקום הקורסור
+        self.selected_piece = None  # הכלי הנבחר
+        self.current_player = "W"  # שחקן נוכחי - W או B
+        
+        # הגדרת בעלות חיילים
+        for piece_id, piece in self.pieces.items():
+            if piece_id.endswith('W'):
+                piece.owner = "W"
+            elif piece_id.endswith('B'):
+                piece.owner = "B"
 
     # ─── helpers ─────────────────────────────────────────────────────────────
     def game_time_ms(self) -> int:
@@ -24,98 +36,177 @@ class Game:
         return int(time.monotonic() * 1000)
 
     def clone_board(self) -> Board:
-        """
-        Return a **brand-new** Board wrapping a copy of the background pixels
-        so we can paint sprites without touching the pristine board.
-        """
+        """Return a brand-new Board wrapping a copy of the background pixels."""
         return self.board.clone()
 
-    def start_user_input_thread(self):
-        """Start the user input thread for mouse handling."""
-        def user_input_listener():
-            while self.running:
-                # Simulate user input (replace with actual input handling)
-                time.sleep(0.1)
-                # Example: Add a dummy command to the queue
-                cmd = Command(piece_id="example_piece", type="Move", params=[])
-                self.user_input_queue.put(cmd)
+    def get_piece_at(self, pos: Tuple[int, int]) -> Optional[Piece]:
+        """מחזיר את הכלי במיקום נתון"""
+        for piece in self.pieces.values():
+            if piece._state._physics.current_cell == pos:
+                return piece
+        return None
 
-        threading.Thread(target=user_input_listener, daemon=True).start()
+    def is_valid_move(self, piece: Piece, target_pos: Tuple[int, int]) -> bool:
+        """בודק אם תנועה חוקית"""
+        current_pos = piece._state._physics.current_cell
+        legal_moves = piece._state._moves.get_moves(*current_pos)
+        return target_pos in legal_moves
+
+    def can_capture(self, attacker: Piece, target: Piece) -> bool:
+        """בודק אם חייל יכול לאכול חייל אחר"""
+        if not attacker or not target:
+            return False
+        if getattr(attacker, 'owner', None) == getattr(target, 'owner', None):
+            return False  # לא יכול לאכול חייל של אותו צד
+        return True
+
+    def execute_move(self, piece: Piece, target_pos: Tuple[int, int]):
+        """מבצע תנועה של חייל"""
+        if not self.is_valid_move(piece, target_pos):
+            return False
+
+        # בדוק אם יש חייל ביעד
+        target_piece = self.get_piece_at(target_pos)
+        if target_piece and self.can_capture(piece, target_piece):
+            # אכול את החייל היריב
+            self.pieces.pop(target_piece.piece_id, None)
+            print(f"{piece.piece_id} אכל את {target_piece.piece_id}!")
+
+        # צור פקודה להזיז את החייל
+        cmd = Command(
+            timestamp=self.game_time_ms(),
+            piece_id=piece.piece_id,
+            type="Move",
+            params=[piece._state._physics.current_cell, target_pos],
+            target_cell=target_pos
+        )
+        
+        piece.on_command(cmd, self.game_time_ms())
+        return True
+
+    def handle_input(self):
+        """טיפול בקלט מהמשתמש באמצעות OpenCV"""
+        key = cv2.waitKey(1) & 0xFF
+        
+        if key == ord('w') and self.cursor_pos[0] > 0:
+            self.cursor_pos[0] -= 1
+            time.sleep(0.1)
+        elif key == ord('s') and self.cursor_pos[0] < self.board.H_cells - 1:
+            self.cursor_pos[0] += 1
+            time.sleep(0.1)
+        elif key == ord('a') and self.cursor_pos[1] > 0:
+            self.cursor_pos[1] -= 1
+            time.sleep(0.1)
+        elif key == ord('d') and self.cursor_pos[1] < self.board.W_cells - 1:
+            self.cursor_pos[1] += 1
+            time.sleep(0.1)
+        elif key == ord(' '):  # space
+            if self.selected_piece is None:
+                # בחר חייל
+                piece = self.get_piece_at(tuple(self.cursor_pos))
+                if piece and getattr(piece, 'owner', None) == self.current_player:
+                    self.selected_piece = piece
+                    print(f"נבחר: {piece.piece_id}")
+            else:
+                # הזז חייל או בטל בחירה
+                if tuple(self.cursor_pos) == self.selected_piece._state._physics.current_cell:
+                    # בטל בחירה
+                    self.selected_piece = None
+                    print("בוטלה הבחירה")
+                else:
+                    # נסה להזיז
+                    if self.execute_move(self.selected_piece, tuple(self.cursor_pos)):
+                        self.selected_piece = None
+                        self.current_player = "B" if self.current_player == "W" else "W"
+                        print(f"תור של שחקן {self.current_player}")
+                    else:
+                        print("תנועה לא חוקית!")
+            time.sleep(0.2)
+        elif key == 27:  # ESC
+            self.running = False
 
     # ─── main public entrypoint ──────────────────────────────────────────────
     def run(self):
         """Main game loop."""
-        self.start_user_input_thread()
-
         start_ms = self.game_time_ms()
         for p in self.pieces.values():
             p.reset(start_ms)
 
+        print("המשחק התחיל! השתמש ב-WASD לתזוזה, SPACE לבחירה/הזזזה, ESC ליציאה")
+        cv2.namedWindow("Chess Game", cv2.WINDOW_AUTOSIZE)
+
         # ─────── main loop ──────────────────────────────────────────────────
-        while not self._is_win():
-            now = self.game_time_ms()  # monotonic time ! not computer time.
+        while not self._is_win() and self.running:
+            now = self.game_time_ms()
 
             # (1) update physics & animations
             for p in self.pieces.values():
                 p.update(now)
 
-            # (2) handle queued Commands from mouse thread
-            while not self.user_input_queue.empty():
-                cmd: Command = self.user_input_queue.get()
-                self._process_input(cmd)
+            # (2) handle user input
+            self.handle_input()
 
             # (3) draw current position
             self._draw()
-            if not self._show():  # returns False if user closed window
+            
+            # (4) show and check for exit
+            if not self._show():
                 break
-
-            # (4) detect captures
-            self._resolve_collisions()
 
         self._announce_win()
         cv2.destroyAllWindows()
 
     # ─── drawing helpers ────────────────────────────────────────────────────
-    def _process_input(self, cmd: Command):
-        """Process user input commands."""
-        if cmd.piece_id in self.pieces:
-            self.pieces[cmd.piece_id].on_command(cmd)
-
     def _draw(self):
         """Draw the current game state."""
-        board_img = self.clone_board().get_image()
-        for p in self.pieces.values():
-            p.draw(board_img)
-        cv2.imshow("Game", board_img)
+        # התחל עם לוח נקי
+        board_copy = self.clone_board()
+        
+        # צייר חיילים
+        for piece in self.pieces.values():
+            img_piece = piece._state._graphics.get_img()
+            if img_piece is not None:
+                row, col = piece._state._physics.current_cell
+                x, y = board_copy.get_pixel_position((row, col))
+                img_piece.draw_on(board_copy.img, x, y)
+
+        # צייר קורסור
+        cursor_x, cursor_y = board_copy.get_pixel_position(tuple(self.cursor_pos))
+        cursor_color = (0, 255, 255, 255)  # ציאן
+        if self.current_player == "B":
+            cursor_color = (255, 255, 0, 255)  # צהוב
+        board_copy.img.draw_rect(cursor_x, cursor_y, board_copy.cell_W_pix, 
+                                board_copy.cell_H_pix, cursor_color, thickness=3)
+
+        # צייר חייל נבחר
+        if self.selected_piece:
+            piece_row, piece_col = self.selected_piece._state._physics.current_cell
+            piece_x, piece_y = board_copy.get_pixel_position((piece_row, piece_col))
+            board_copy.img.draw_rect(piece_x, piece_y, board_copy.cell_W_pix, 
+                                   board_copy.cell_H_pix, (0, 255, 0, 255), thickness=5)
+
+        board_copy.img.show(wait_ms=1)
 
     def _show(self) -> bool:
         """Show the current frame and handle window events."""
-        key = cv2.waitKey(1) & 0xFF
-        if key == 27:  # ESC key
-            self.running = False
-            return False
-        return True
+        return self.running
 
-    # ─── capture resolution ────────────────────────────────────────────────
-    def _resolve_collisions(self):
-        """Resolve piece collisions and captures."""
-        for piece1 in self.pieces.values():
-            for piece2 in self.pieces.values():
-                if piece1 != piece2 and piece1.can_capture(piece2):
-                    if piece2.can_be_captured():
-                        piece2.capture()
-
-    # ─── board validation & win detection ───────────────────────────────────
+    # ─── win detection ───────────────────────────────────────────────────────
     def _is_win(self) -> bool:
         """Check if the game has ended."""
-        # Example: Check if only one piece remains
-        remaining_pieces = [p for p in self.pieces.values() if not p.is_captured()]
-        return len(remaining_pieces) <= 1
+        white_pieces = [p for p in self.pieces.values() if getattr(p, 'owner', None) == 'W']
+        black_pieces = [p for p in self.pieces.values() if getattr(p, 'owner', None) == 'B']
+        
+        return len(white_pieces) == 0 or len(black_pieces) == 0
 
     def _announce_win(self):
         """Announce the winner."""
-        remaining_pieces = [p for p in self.pieces.values() if not p.is_captured()]
-        if remaining_pieces:
-            print(f"The winner is: {remaining_pieces[0].piece_id}")
+        white_pieces = [p for p in self.pieces.values() if getattr(p, 'owner', None) == 'W']
+        black_pieces = [p for p in self.pieces.values() if getattr(p, 'owner', None) == 'B']
+        
+        if len(white_pieces) == 0:
+            print("השחורים ניצחו!")
+        elif len(black_pieces) == 0:
+            print("הלבנים ניצחו!")
         else:
-            print("No winner!")
+            print("המשחק הסתיים!")

@@ -2,6 +2,7 @@ from It1_interfaces.Board import Board
 from It1_interfaces.Command import Command
 from It1_interfaces.State import State
 from typing import Optional
+import time
 
 
 class Piece:
@@ -25,7 +26,7 @@ class Piece:
         """
         return cmd.piece_id == self.piece_id
 
-    def on_command(self, cmd: Command, now_ms: int):
+    def on_command(self, cmd: Command, now_ms: int = None):
         """
         טיפול בפקודה שהגיעה לכלי.
 
@@ -35,6 +36,9 @@ class Piece:
         :param cmd: פקודה לטיפול
         :param now_ms: זמן נוכחי במילישניות
         """
+        if now_ms is None:
+            now_ms = int(time.time() * 1000)
+            
         if self.is_command_possible(cmd):
             next_state = self._state.process_command(cmd, now_ms)
             if next_state is not None:
